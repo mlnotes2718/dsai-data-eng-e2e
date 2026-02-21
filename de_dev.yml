@@ -1,0 +1,14 @@
+name: dagster
+channels:
+  - defaults
+dependencies:
+  - pip=25.3
+  - requests=2.32.5
+  - python=3.11.14
+  - matplotlib=3.10.7
+  - pandas=2.3.3
+  - mypy
+  - ruff
+  - just
+  - pytest
+prefix: /Users/dsai/miniconda3/envs/dagster
