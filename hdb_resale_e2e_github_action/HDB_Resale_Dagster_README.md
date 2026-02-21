@@ -71,18 +71,7 @@ Use the following command to check what we selected
 ```bash
 meltano select tap-postgres --list
 ```
-Next, we need to set the replication to `Incremental` on the primary key:
-```bash
-meltano config set tap-postgres _metadata "public-resale_flat_prices_from_jan_2017" replication-method INCREMENTAL
-```
 
-```bash
-meltano config set tap-postgres _metadata "public-resale_flat_prices_from_jan_2017" replication-key id
-````
-
-```bash
-meltano config set tap-postgres _metadata "public-resale_flat_prices_from_jan_2017" key-properties '["id"]'
-```
 
 ### Add an Loader to Load Data to BigQuery
 We will now add a loader to load the data into BigQuery.
@@ -120,25 +109,7 @@ meltano run tap-postgres target-bigquery
 
 You will see the logs printed out in your console. Once the pipeline is completed, you can check the data in BigQuery.
 
-### Manage Incremental State
 
-```bash
-meltano --environment=dev state list
-meltano --environment=dev state get dev:tap-postgres-to-target-bigquery
-```
-Now that you have the state working, here are the most common commands you'll need as you maintain this pipeline:
-
-To "Rewind" (Re-sync recent data): If you think some data was corrupted, you can manually set the ID back to a lower number.
-
-```bash
-meltano --environment=dev state set dev:tap-postgres-to-target-bigquery --value '{"bookmarks": {"public-resale_flat_prices_from_jan_2017": {"replication_key_value": 1000}}}'
-```
-
-To "Reset" (Full Refresh): If you want to wipe the state and start from ID 0.
-
-```bash
-meltano --environment=dev state clear dev:tap-postgres-to-target-bigquery
-```
 
 ## HDB Resale Price End to End Orchestration Setup dbt
 
