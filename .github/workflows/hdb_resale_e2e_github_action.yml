@@ -36,11 +36,11 @@ jobs:
           environment-file: dagster-environment.yml # This handles both conda and pip automatically
           auto-activate-base: false
 
-      # - name: Write BigQuery Service Account Key to File
-      #   run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
+      - name: Write BigQuery Service Account Key to File
+        run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
 
-      # - name: Set GOOGLE_APPLICATION_CREDENTIALS env
-      #   run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS env
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
 
       - name: Run Script and Capture Logs
         run: ./run.sh 2>&1 | tee workflow.log
