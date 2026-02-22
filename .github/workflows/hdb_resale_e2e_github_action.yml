@@ -34,7 +34,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: dagster
-          environment-file: /hdb_resale_e2e_github_action/dagster-environment.yml # This handles both conda and pip automatically
+          environment-file: ./hdb_resale_e2e_github_action/dagster-environment.yml # This handles both conda and pip automatically
 
       - name: Write BigQuery Service Account Key to File
         run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
