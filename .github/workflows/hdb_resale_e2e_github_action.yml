@@ -43,6 +43,7 @@ jobs:
         run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
 
       - name: Run Script and Capture Logs
+        shell: bash -l {0}
         run: ./run.sh 2>&1 | tee workflow.log
       
       # - name: Read Log File into Environment Variable
