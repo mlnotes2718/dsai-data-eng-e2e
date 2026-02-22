@@ -21,8 +21,8 @@ fi
 echo "Step 1: Syncing data via Meltano ($TARGET)..."
 cd meltano_hdb_resale
 meltano config test tap-postgres
-# meltano --environment=$TARGET run tap-postgres target-bigquery
-# cd ..
+meltano --environment=$TARGET run tap-postgres target-bigquery
+cd ..
 
 # 2. Transform data with dbt
 echo "Step 2: Installing dbt deps and building ($TARGET)..."
