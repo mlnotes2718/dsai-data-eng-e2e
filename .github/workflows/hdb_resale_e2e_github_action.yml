@@ -35,7 +35,6 @@ jobs:
         with:
           activate-environment: dagster
           environment-file: dagster-environment.yml # This handles both conda and pip automatically
-          auto-activate-base: false
 
       - name: Write BigQuery Service Account Key to File
         run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
