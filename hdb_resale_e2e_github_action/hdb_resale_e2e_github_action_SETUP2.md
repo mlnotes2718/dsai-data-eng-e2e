@@ -1,3 +1,32 @@
+# DSAI - HDB Resale Price End to End Pipeline Setup 2 - Github Action
+
+## Github Secrets
+
+We need to use Github Secrets to store our password in productions. To add Github Secrets, On the repository, select `Settings` 
+
+![alt text](../assets/repo_settings.png)
+
+Select `Secrets and Variables`
+
+
+![alt text](../assets/repo_secrets.png)
+
+
+Select `Actions`
+
+![alt text](../assets/repo_action_secrets.png)
+
+Add your password and other important variables
+
+## Github Actions
+
+We use Github Action to run the repository on a virtual machine. Github Action has evolved over time to allow us to run our repository on virtual machine for free. However, there are limitations such as the CPU and RAM size.
+
+We create a YAML file inside the folder `./github/workflows`. The folder must be in the root folder for monorepo (multiple projects in one repository).
+
+A sample of the Github Workflows is as follows:
+
+```yml
 name: HDB Resale E2E Github Action 
 
 on:
@@ -84,3 +113,5 @@ jobs:
       #       Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       #     to: "${{ secrets.COLLABORATORS_EMAILS }}"
       #     from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
+
+```

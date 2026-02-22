@@ -406,7 +406,7 @@ Run the following to review the automated documenation:
 dbt docs serve
 ```
 
-## Automation
+## Automation Script
 
 1. Create a file at the root folder with `run.sh`
 
