@@ -18,8 +18,9 @@ else
 fi
 
 # 1. Sync data with Meltano using Environment
-# echo "Step 1: Syncing data via Meltano ($TARGET)..."
-# cd meltano_hdb_resale
+echo "Step 1: Syncing data via Meltano ($TARGET)..."
+cd meltano_hdb_resale
+meltano config test tap-postgres
 # meltano --environment=$TARGET run tap-postgres target-bigquery
 # cd ..
 
