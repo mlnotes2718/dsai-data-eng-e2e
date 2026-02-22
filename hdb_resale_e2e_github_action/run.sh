@@ -18,10 +18,10 @@ else
 fi
 
 # 1. Sync data with Meltano using Environment
-echo "Step 1: Syncing data via Meltano ($TARGET)..."
-cd meltano_hdb_resale
-meltano --environment=$TARGET run tap-postgres target-bigquery
-cd ..
+# echo "Step 1: Syncing data via Meltano ($TARGET)..."
+# cd meltano_hdb_resale
+# meltano --environment=$TARGET run tap-postgres target-bigquery
+# cd ..
 
 # 2. Transform data with dbt
 echo "Step 2: Installing dbt deps and building ($TARGET)..."
