@@ -1,0 +1,70 @@
+name: Run ELT Process on Schedule
+
+on:
+  #push: # use in production stage
+  #  branches:
+  #    - main  # Adjust if you want to trigger on different branches
+  workflow_dispatch:  # Enables manual triggering from GitHub UI
+  #schedule:
+  #  - cron: '0 15 * * 2'  # Runs every Tuesday at 3pm UTC (11pm SG time)
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    
+    # Set environment variables for the entire job
+    env:
+      TAP_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }} 
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'  # Adjust as needed
+      
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: dagster
+          environment-file: dagster-environment.yml # This handles both conda and pip automatically
+          auto-activate-base: false
+
+      # - name: Write BigQuery Service Account Key to File
+      #   run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
+
+      # - name: Set GOOGLE_APPLICATION_CREDENTIALS env
+      #   run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
+
+      - name: Run Script and Capture Logs
+        run: ./hdb_resale_e2e_github_action/run.sh 2>&1 | tee workflow.log
+      
+      # - name: Read Log File into Environment Variable
+      #   run: echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV && cat workflow.log >> $GITHUB_ENV && echo "EOF" >> $GITHUB_ENV
+      
+      # - name: Send Email Notification with Logs
+      #   if: always()
+      #   uses: dawidd6/action-send-mail@v3
+      #   with:
+      #     server_address: smtp.gmail.com
+      #     server_port: 587
+      #     username: ${{ secrets.MAIL_USERNAME }}
+      #     password: ${{ secrets.MAIL_PASSWORD }}
+      #     subject: "GitHub Actions Workflow Run - ${{ job.status }}"
+      #     body: |
+      #       Job Status: ${{ job.status }}
+      #       Repository: ${{ github.repository }}
+      #       Branch: ${{ github.ref }}
+      #       Commit: ${{ github.sha }}
+      #       Workflow: ${{ github.workflow }}
+      #       Run ID: ${{ github.run_id }}
+            
+      #       Logs:
+      #       ${{ env.LOG_CONTENT }}
+            
+      #       Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      #     to: "${{ secrets.COLLABORATORS_EMAILS }}"
+      #     from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"

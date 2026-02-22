@@ -1,4 +1,4 @@
-# DSAI - HDB Resale Price End to End Pipeline - Local Development
+# DSAI - HDB Resale Price End to End Pipeline Setup - Github Action
 
 ## HDB Resale Price End to End Pipeline - Setup Meltano
 
