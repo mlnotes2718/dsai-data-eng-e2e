@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dim_prices_by_town_type_model  # Ensure this matches your .sql filename
+    description: "Aggregated HDB resale metrics grouped by town and flat characteristics."
+    columns:
+      - name: town
+        description: "The HDB town name."
+        tests:
+          - not_null
+
+      - name: avg_price_per_sqm
+        description: "The mean price per square meter for this group."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: avg_resale_price
+        description: "The mean transaction price for this group."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: flat_type
+        description: "Type of flat (e.g., 3 ROOM, 4 ROOM, EXECUTVE)."
+        tests:
+          - not_null

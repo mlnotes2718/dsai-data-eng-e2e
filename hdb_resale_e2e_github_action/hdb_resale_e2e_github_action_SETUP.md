@@ -97,6 +97,12 @@ Set the following options:
 - `project`: *your_gcp_project_id*
 
 ### Setting Overwrite
+Open `meltano.yml` file and perform the following:
+
+```yml
+# change 'true' to true
+      overwrite: true
+```
 
 Comment out the original
 ```yml

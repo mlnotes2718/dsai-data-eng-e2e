@@ -1,0 +1,25 @@
+dbt_hdb_resale:
+  outputs:
+    dev:
+      dataset: dev_hdb_resale
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      keyfile: /Users/dsai/Downloads/sctp-dsai-ds2f-8c799f0e1cf8.json
+      location: US
+      method: service-account
+      priority: interactive
+      project: sctp-dsai-ds2f
+      threads: 2
+      type: bigquery
+    prod:
+      dataset: prod_hdb_resale
+      job_execution_timeout_seconds: 300
+      job_retries: 5
+      keyfile: /Users/dsai/Downloads/sctp-dsai-ds2f-8c799f0e1cf8.json
+      location: US
+      method: service-account
+      priority: interactive
+      project: sctp-dsai-ds2f
+      threads: 3
+      type: bigquery
+  target: dev

@@ -97,6 +97,12 @@ Set the following options:
 - `project`: *your_gcp_project_id*
 
 ### Setting Overwrite
+Open `meltano.yml` file and perform the following:
+
+```yml
+# change 'true' to true
+      overwrite: true
+```
 
 Comment out the original
 ```yml
@@ -474,17 +480,19 @@ If you run `dagster dev` at this stage, you can see the lineage graph as follows
 
 This lineage graph is not ideal as there is no dependency between meltano and dbt.
 
-The dependency can be set in dbt `source.yml` as follows:
+The dependency can be set in dbt `stg_hdb_resale.yml` under `source` section as follows:
 
 ```yml
-version: 2
 sources:
-  - name: resale
+  - name: hdb_resale_source
+    description: "Raw HDB resale data from Postgres source"
+    schema: "{{ target.name }}_postgres_hdb_resale_raw"
+    meta:
+      dagster:
+        asset_key: ["pipeline_meltano"]
     tables:
       - name: public_resale_flat_prices_from_jan_2017
-        meta:
-          dagster:
-            asset_key: ["pipeline_meltano"]
+        description: "Raw monthly HDB transaction records"
 ```
 
 The final lineage graph is as follows:
