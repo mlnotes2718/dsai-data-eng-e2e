@@ -62,7 +62,8 @@ jobs:
           # If your definitions.py is not in the root of the working-directory, 
           # specify it here using -m or -f
         run: |
-          dg launch --assets "*" | tee pipeline_log.txt
+          cd dagster_dbt_integration_hdb_resale
+          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions
       
 
 
