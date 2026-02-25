@@ -80,7 +80,7 @@ jobs:
 
 
       - name: Read Log File into Environment Variable
-        run:
+        run: |
           cd dagster_dbt_integration_hdb_resale 
           echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV && cat pipeline.log >> $GITHUB_ENV && echo "EOF" >> $GITHUB_ENV
       
