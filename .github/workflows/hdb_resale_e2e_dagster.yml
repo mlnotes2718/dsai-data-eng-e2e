@@ -50,6 +50,8 @@ jobs:
           meltano install
 
       - name: dbt Dependencies
+        env: 
+          TARGET: dev
         shell: bash -l {0}
         run: |
           cd dbt_hdb_resale
@@ -59,7 +61,7 @@ jobs:
       - name: Run Dagster Asset
         shell: bash -l {0}
         env:
-          TARGET: prod
+          TARGET: dev
           # If your definitions.py is not in the root of the working-directory, 
           # specify it here using -m or -f
         run: |
