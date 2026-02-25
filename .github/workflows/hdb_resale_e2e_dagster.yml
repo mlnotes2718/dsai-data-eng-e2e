@@ -1,10 +1,10 @@
-name: HDB Resale E2E Dagster 
+name: HDB Resale E2E Dagster
 
 on:
   # push: # use in production stage
   #  branches:
   #    - main  # Adjust if you want to trigger on different branches
-  workflow_dispatch:  # Enables manual triggering from GitHub UI
+  workflow_dispatch: # Enables manual triggering from GitHub UI
   # schedule:
   #  - cron: '0 15 * * 2'  # Runs every Tuesday at 3pm UTC (11pm SG time)
 
@@ -22,16 +22,15 @@ jobs:
       BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }}
       LOG_CONTENT: ""
 
-    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
+
       - name: Setup Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -52,7 +51,7 @@ jobs:
           meltano install
 
       - name: dbt Dependencies
-        env: 
+        env:
           TARGET: dev
         shell: bash -l {0}
         run: |
@@ -64,30 +63,27 @@ jobs:
         shell: bash -l {0}
         env:
           TARGET: dev
-          # If your definitions.py is not in the root of the working-directory, 
+          # If your definitions.py is not in the root of the working-directory,
           # specify it here using -m or -f
         run: |
           cd dagster_dbt_integration_hdb_resale
           dagster asset materialize --select "*"  \
             -m dagster_dbt_integration_hdb_resale.definitions \
             --tags '{"dagster-dbt/select": "fqn:*", "dagster-dbt/full-refresh": "true"}' | tee pipeline.log
-      
 
+      ## The following is the setup for Email notification
 
-## The following is the setup for Email notification
-
-## Additional secrets is required
-## COLLABORATORS_EMAILS : contain list of email
-## MAIL_USERNAME : email account to send notification (Tested good with GMAIL)
-## MAIL_PASSWORD : email password (Not the password to the Gmail but App Password Generate from Gmail) 
-##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
-
+      ## Additional secrets is required
+      ## COLLABORATORS_EMAILS : contain list of email
+      ## MAIL_USERNAME : email account to send notification (Tested good with GMAIL)
+      ## MAIL_PASSWORD : email password (Not the password to the Gmail but App Password Generate from Gmail)
+      ##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
 
       - name: Read Log File into Environment Variable
         run: |
           cd dagster_dbt_integration_hdb_resale 
           echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV && cat pipeline.log >> $GITHUB_ENV && echo "EOF" >> $GITHUB_ENV
-      
+
       - name: Send Email Notification with Logs
         if: always()
         uses: dawidd6/action-send-mail@v3
@@ -104,10 +100,10 @@ jobs:
             Commit: ${{ github.sha }}
             Workflow: ${{ github.workflow }}
             Run ID: ${{ github.run_id }}
-            
+
             Logs:
             ${{ env.LOG_CONTENT}}
-            
+
             Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           to: "${{ secrets.COLLABORATORS_EMAILS }}"
           from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
