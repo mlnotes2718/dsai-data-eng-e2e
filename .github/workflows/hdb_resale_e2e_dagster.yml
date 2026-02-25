@@ -82,6 +82,7 @@ jobs:
       - name: Prepare Email Body
         if: always()
         run: |
+          cd dagster_dbt_integration_hdb_resale
           echo "### Dagster Pipeline Execution Report" > email_body.txt
           echo "Environment: ${{ env.TARGET }}" >> email_body.txt
           echo "Status: ${{ job.status }}" >> email_body.txt
@@ -100,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-dagster-log-${{ github.run_id }}
-          path: pipeline_log.txt
+          path: ./dagster_dbt_integration_hdb_resale/pipeline_log.txt
           retention-days: 7  # Keeps the repo clean after a week
 
       - name: Send Mail
