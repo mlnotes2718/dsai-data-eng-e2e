@@ -68,7 +68,9 @@ jobs:
           # specify it here using -m or -f
         run: |
           cd dagster_dbt_integration_hdb_resale
-          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions | tee pipeline.log
+          dagster asset materialize --select "*"  \
+            -m dagster_dbt_integration_hdb_resale.definitions \
+            --tags '{"dagster-dbt/select": "fqn:*", "dagster-dbt/full-refresh": "true"}' | tee pipeline.log
       
 
 
