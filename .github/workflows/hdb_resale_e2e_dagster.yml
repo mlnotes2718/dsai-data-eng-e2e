@@ -79,33 +79,40 @@ jobs:
 ##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
 
 
-      - name: Read Log File into Environment Variable
-        if: always() 
+      - name: Prepare Email Body
+        if: always()
         run: |
-          echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV
-          # Use tail to get the last 100 lines so the email isn't too large for SMTP limits
-          tail -n 100 pipeline_log.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-      
-      - name: Send Email Notification with Logs
+          echo "### Dagster Pipeline Execution Report" > email_body.txt
+          echo "Environment: ${{ env.TARGET }}" >> email_body.txt
+          echo "Status: ${{ job.status }}" >> email_body.txt
+          echo "-----------------------------------" >> email_body.txt
+          echo "Last 100 lines of logs:" >> email_body.txt
+          echo '```' >> email_body.txt
+          if [ -f pipeline_log.txt ]; then
+            tail -n 100 pipeline_log.txt >> email_body.txt
+          else
+            echo "No log file found." >> email_body.txt
+          fi
+          echo '```' >> email_body.txt
+
+      - name: Upload Full Pipeline Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-dagster-log-${{ github.run_id }}
+          path: pipeline_log.txt
+          retention-days: 7  # Keeps the repo clean after a week
+
+      - name: Send Mail
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
+          secure: false 
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "GitHub Actions Workflow Run - ${{ job.status }}"
-          body: |
-            Pipeline Result: ${{ job.status }}
-            
-            Environment: ${{ env.TARGET }}
-            Run Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            
-            Last 100 lines of logs:
-            -----------------------------------------
-            ${{ env.LOG_CONTENT }}
-            -----------------------------------------
-            
-          to: "${{ secrets.COLLABORATORS_EMAILS }}"
-          from: "Dagster Bot <${{ secrets.MAIL_USERNAME }}>"
+          subject: Dagster Pipeline Status - ${{ job.status }}
+          to: your-email@example.com
+          from: GitHub Actions Orchestrator
+          body: file://email_body.txt
