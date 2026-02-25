@@ -56,6 +56,7 @@ jobs:
           dbt deps 
 
       - name: Run Dagster Asset
+        shell: bash -l {0}
         env:
           TARGET: prod
           # If your definitions.py is not in the root of the working-directory, 
