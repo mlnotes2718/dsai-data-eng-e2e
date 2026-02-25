@@ -1,0 +1,104 @@
+name: HDB Resale E2E Dagster 
+
+on:
+  # push: # use in production stage
+  #  branches:
+  #    - main  # Adjust if you want to trigger on different branches
+  workflow_dispatch:  # Enables manual triggering from GitHub UI
+  # schedule:
+  #  - cron: '0 15 * * 2'  # Runs every Tuesday at 3pm UTC (11pm SG time)
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hdb_resale_e2e_dagster
+
+    # Set environment variables for the entire job
+    env:
+      TAP_POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      TAP_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }} 
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: dagster
+          environment-file: ./hdb_resale_e2e_dagster/dagster-environment.yml
+
+      - name: Write BigQuery Service Account Key to File
+        run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
+
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS env
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
+
+      # Add this to ensure Meltano plugins (tap/target) are available
+      - name: Meltano Install
+        run: |
+          cd meltano_hdb_resale
+          meltano install
+
+      - name: dbt Dependencies
+        run: |
+          cd dbt_hdb_resale
+          dbt deps 
+
+      - name: Run Dagster Asset
+        env:
+          TARGET: prod
+          # If your definitions.py is not in the root of the working-directory, 
+          # specify it here using -m or -f
+        run: |
+          dagster asset materialize --select "*" | tee pipeline_log.txt
+      
+
+
+## The following is the setup for Email notification
+
+## Additional secrets is required
+## COLLABORATORS_EMAILS : contain list of email
+## MAIL_USERNAME : email account to send notification (Tested good with GMAIL)
+## MAIL_PASSWORD : email password (Not the password to the Gmail but App Password Generate from Gmail) 
+##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
+
+
+      - name: Read Log File into Environment Variable
+        if: always() 
+        run: |
+          echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV
+          # Use tail to get the last 100 lines so the email isn't too large for SMTP limits
+          tail -n 100 pipeline_log.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      
+      - name: Send Email Notification with Logs
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "GitHub Actions Workflow Run - ${{ job.status }}"
+          body: |
+            Pipeline Result: ${{ job.status }}
+            
+            Environment: ${{ env.TARGET }}
+            Run Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Last 100 lines of logs:
+            -----------------------------------------
+            ${{ env.LOG_CONTENT }}
+            -----------------------------------------
+            
+          to: "${{ secrets.COLLABORATORS_EMAILS }}"
+          from: "Dagster Bot <${{ secrets.MAIL_USERNAME }}>"
