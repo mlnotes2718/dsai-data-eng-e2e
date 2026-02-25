@@ -66,7 +66,7 @@ jobs:
           # specify it here using -m or -f
         run: |
           cd dagster_dbt_integration_hdb_resale
-          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions | tee pipeline_log.txt
+          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions | tee pipeline.log
       
 
 
@@ -79,41 +79,29 @@ jobs:
 ##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
 
 
-      - name: Prepare Email Body
-        if: always()
-        run: |
-          cd dagster_dbt_integration_hdb_resale
-          echo "### Dagster Pipeline Execution Report" > email_body.txt
-          echo "Environment: ${{ env.TARGET }}" >> email_body.txt
-          echo "Status: ${{ job.status }}" >> email_body.txt
-          echo "-----------------------------------" >> email_body.txt
-          echo "Last 100 lines of logs:" >> email_body.txt
-          echo '```' >> email_body.txt
-          if [ -f pipeline_log.txt ]; then
-            tail -n 100 pipeline_log.txt >> email_body.txt
-          else
-            echo "No log file found." >> email_body.txt
-          fi
-          echo '```' >> email_body.txt
-
-      - name: Upload Full Pipeline Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: full-dagster-log-${{ github.run_id }}
-          path: ./dagster_dbt_integration_hdb_resale/pipeline_log.txt
-          retention-days: 7  # Keeps the repo clean after a week
-
-      - name: Send Mail
+      - name: Read Log File into Environment Variable
+        run: echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV && cat pipeline.log >> $GITHUB_ENV && echo "EOF" >> $GITHUB_ENV
+      
+      - name: Send Email Notification with Logs
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: false 
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: Dagster Pipeline Status - ${{ job.status }}
-          to: your-email@example.com
-          from: GitHub Actions Orchestrator
-          body: file://email_body.txt
+          subject: "GitHub Actions Workflow Run - ${{ job.status }}"
+          body: |
+            Job Status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Run ID: ${{ github.run_id }}
+            
+            Logs:
+            ${{ env.LOG_CONTENT }}
+            
+            Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: "${{ secrets.COLLABORATORS_EMAILS }}"
+          from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
