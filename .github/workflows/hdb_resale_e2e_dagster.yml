@@ -62,7 +62,7 @@ jobs:
           # If your definitions.py is not in the root of the working-directory, 
           # specify it here using -m or -f
         run: |
-          dagster asset execute -f definitions.py --select "*" | tee pipeline_log.txt
+          dg launch --assets "*" | tee pipeline_log.txt
       
 
 
