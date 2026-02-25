@@ -44,11 +44,13 @@ jobs:
 
       # Add this to ensure Meltano plugins (tap/target) are available
       - name: Meltano Install
+        shell: bash -l {0}
         run: |
           cd meltano_hdb_resale
           meltano install
 
       - name: dbt Dependencies
+        shell: bash -l {0}
         run: |
           cd dbt_hdb_resale
           dbt deps 
