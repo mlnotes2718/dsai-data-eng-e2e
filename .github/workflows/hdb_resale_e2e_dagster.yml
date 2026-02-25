@@ -54,6 +54,7 @@ jobs:
         run: |
           cd dbt_hdb_resale
           dbt deps 
+          dbt compile --target $TARGET
 
       - name: Run Dagster Asset
         shell: bash -l {0}
@@ -63,7 +64,7 @@ jobs:
           # specify it here using -m or -f
         run: |
           cd dagster_dbt_integration_hdb_resale
-          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions
+          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions | tee pipeline_log.txt
       
 
 
