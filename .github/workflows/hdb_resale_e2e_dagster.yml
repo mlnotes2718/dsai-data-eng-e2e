@@ -19,7 +19,8 @@ jobs:
     env:
       TAP_POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       TAP_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }} 
+      BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }}
+      LOG_CONTENT: "" 
     
     steps:
       - name: Checkout Code

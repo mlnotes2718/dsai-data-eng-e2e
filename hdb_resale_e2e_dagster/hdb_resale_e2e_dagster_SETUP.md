@@ -421,66 +421,59 @@ Use the following command:
 ```bash
 dagster-dbt project scaffold --project-name dagster_dbt_integration_hdb_resale --dbt-project-dir #full-path-to-the-resale-flat-dbt-project-directory
 ```
-If you run `dagster dev` at this stage, you can see the asset lineage graph as follows:
 
-![alt text](../assets/dbt-integration-raw.png)
-
-If you have more complex dimension table, it will present here and the dependencies are automatically resolved by Dagster. Furthermore, we do not need to run dbt test, if you look at the box under `prices`, there is a row call `check`. So when they are materializing the prices table, it will perform dbt test at the same time.
-
-Next we would like to add meltano as subprocess.
+Next we would like to add meltano as subprocess and also modify the asset and definitions to handle `dev` and `prod` environment.
 
 ```python
 # assets.py
-from dagster import AssetExecutionContext, asset
+import os
+import subprocess
+from dagster import AssetExecutionContext, asset, Config, EnvVar
 from dagster_dbt import DbtCliResource, dbt_assets
-
 from .project import dbt_hdb_resale_project
 
-import subprocess
+# --- 1. DEFINE THE CONFIG SCHEMA HERE ---
+class PipelineConfig(Config):
+    # This tells Dagster to look for "TARGET". 
+    # If it's not found in the OS, it falls back to "dev".
+    target_env: str = os.getenv("TARGET", "dev")
+
+# --- 2. USE IT IN YOUR ASSETS ---
 
 @asset(compute_kind="meltano")
-def pipeline_meltano()->None:
-    """
-    Runs meltano tap-postgres target-bigquery
-    """
-    cmd = ["meltano", "run", "tap-postgres", "target-bigquery"]
-    cwd = '/path/to/meltano/folder/meltano_hdb_resale'
+def pipeline_meltano(config: PipelineConfig) -> None:
+    # 1. Get the directory where THIS assets.py file lives
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # 2. Go up to the project root and then into the meltano folder
+    # This assumes meltano_hdb_resale is one level up from assets.py
+    cwd = os.path.abspath(os.path.join(current_dir, "..", "..", "meltano_hdb_resale"))
+    
+    # Debugging: This will show up in Dagster logs so you can see where it's looking
+    print(f"Looking for Meltano in: {cwd}")
+
+    cmd = ["meltano", "--environment", config.target_env, "run", "tap-postgres", "target-bigquery"]
+    
     try:
-        output= subprocess.check_output(cmd,cwd=cwd,stderr=subprocess.STDOUT).decode()
+        # Check if the directory actually exists before running
+        if not os.path.exists(cwd):
+            raise FileNotFoundError(f"Could not find Meltano directory at {cwd}")
+            
+        output = subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT).decode()
     except subprocess.CalledProcessError as e:
-            output = e.output.decode()
-            raise Exception(output)
+        raise Exception(e.output.decode())
 
 @dbt_assets(manifest=dbt_hdb_resale_project.manifest_path)
-def dbt_hdb_resale_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
-    yield from dbt.cli(["build"], context=context).stream()
+def dbt_hdb_resale_dbt_assets(
+    context: AssetExecutionContext, 
+    dbt: DbtCliResource, 
+    config: PipelineConfig # Injecting the config here too
+):
+    # Pass the value to dbt --target
+    yield from dbt.cli(["build", "--target", config.target_env], context=context).stream()
 ```
 
-On `definitions.py` we add meltano pipeline into the definitions
-```python
-# definitions.py
-from dagster import Definitions
-from dagster_dbt import DbtCliResource
-from .assets import dbt_hdb_resale_dbt_assets, pipeline_meltano
-from .project import dbt_hdb_resale_project
-from .schedules import schedules
-
-defs = Definitions(
-    assets=[pipeline_meltano, dbt_hdb_resale_dbt_assets],
-    schedules=schedules,
-    resources={
-        "dbt": DbtCliResource(project_dir=dbt_hdb_resale_project)
-    },
-)
-```
-
-If you run `dagster dev` at this stage, you can see the lineage graph as follows:
-
-![alt text](../assets/dbt-integration-meltano.png)
-
-This lineage graph is not ideal as there is no dependency between meltano and dbt.
-
-The dependency can be set in dbt `stg_hdb_resale.yml` under `source` section as follows:
+We also need to modify the dependency of dbt at `stg_hdb_resale.yml` under `source` section as follows:
 
 ```yml
 sources:
@@ -495,6 +488,117 @@ sources:
         description: "Raw monthly HDB transaction records"
 ```
 
-The final lineage graph is as follows:
+## Github Action
 
-![alt text](../assets/dbt-integration-final.png)
+```yml
+name: HDB Resale E2E Dagster 
+
+on:
+  # push: # use in production stage
+  #  branches:
+  #    - main  # Adjust if you want to trigger on different branches
+  workflow_dispatch:  # Enables manual triggering from GitHub UI
+  # schedule:
+  #  - cron: '0 15 * * 2'  # Runs every Tuesday at 3pm UTC (11pm SG time)
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./hdb_resale_e2e_dagster
+
+    # Set environment variables for the entire job
+    env:
+      TAP_POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      TAP_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }}
+      LOG_CONTENT: "" 
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: dagster
+          environment-file: ./hdb_resale_e2e_dagster/dagster-environment.yml
+
+      - name: Write BigQuery Service Account Key to File
+        run: echo "$BIGQUERY_SERVICE_ACCOUNT_KEY" > /tmp/bq-key.json
+
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS env
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/bq-key.json" >> $GITHUB_ENV
+
+      # Add this to ensure Meltano plugins (tap/target) are available
+      - name: Meltano Install
+        shell: bash -l {0}
+        run: |
+          cd meltano_hdb_resale
+          meltano install
+
+      - name: dbt Dependencies
+        env: 
+          TARGET: dev
+        shell: bash -l {0}
+        run: |
+          cd dbt_hdb_resale
+          dbt deps 
+          dbt compile --target $TARGET
+
+      - name: Run Dagster Asset
+        shell: bash -l {0}
+        env:
+          TARGET: dev
+          # If your definitions.py is not in the root of the working-directory, 
+          # specify it here using -m or -f
+        run: |
+          cd dagster_dbt_integration_hdb_resale
+          dagster asset materialize --select "*" -m dagster_dbt_integration_hdb_resale.definitions | tee pipeline.log
+      
+
+
+## The following is the setup for Email notification
+
+## Additional secrets is required
+## COLLABORATORS_EMAILS : contain list of email
+## MAIL_USERNAME : email account to send notification (Tested good with GMAIL)
+## MAIL_PASSWORD : email password (Not the password to the Gmail but App Password Generate from Gmail) 
+##     COPY and PASTE ONLY FROM APP PASSWORD GENERATOR TO GITHUB SECRETS (Other form of copy and paste do not work)
+
+
+      - name: Read Log File into Environment Variable
+        run: |
+          cd dagster_dbt_integration_hdb_resale 
+          echo "LOG_CONTENT<<EOF" >> $GITHUB_ENV && cat pipeline.log >> $GITHUB_ENV && echo "EOF" >> $GITHUB_ENV
+      
+      - name: Send Email Notification with Logs
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "GitHub Actions Workflow Run - ${{ job.status }}"
+          body: |
+            Job Status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Run ID: ${{ github.run_id }}
+            
+            Logs:
+            ${{ env.LOG_CONTENT }}
+            
+            Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: "${{ secrets.COLLABORATORS_EMAILS }}"
+          from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
+```
