@@ -1,8 +1,8 @@
 # assets.py
 import os
 import subprocess
-from dagster import AssetExecutionContext, asset, Config, EnvVar
-from dagster_dbt import DbtCliResource, dbt_assets
+from dagster import AssetExecutionContext, asset, Config # type: ignore
+from dagster_dbt import DbtCliResource, dbt_assets # type: ignore
 from .project import dbt_hdb_resale_project
 
 # --- 1. DEFINE THE CONFIG SCHEMA HERE ---
@@ -32,7 +32,7 @@ def pipeline_meltano(config: PipelineConfig) -> None:
         if not os.path.exists(cwd):
             raise FileNotFoundError(f"Could not find Meltano directory at {cwd}")
             
-        output = subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT).decode()
+        output = subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT).decode() # noqa: F841
     except subprocess.CalledProcessError as e:
         raise Exception(e.output.decode())
 
