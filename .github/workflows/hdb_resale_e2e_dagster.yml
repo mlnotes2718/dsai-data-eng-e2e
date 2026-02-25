@@ -20,6 +20,7 @@ jobs:
       TAP_POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       TAP_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       BIGQUERY_SERVICE_ACCOUNT_KEY: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_KEY }}
+      LOG_CONTENT: ""
 
     
     steps:
@@ -103,7 +104,7 @@ jobs:
             Run ID: ${{ github.run_id }}
             
             Logs:
-            ${{ env.LOG_CONTENT || 'No logs available' }}
+            ${{ env.LOG_CONTENT}}
             
             Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           to: "${{ secrets.COLLABORATORS_EMAILS }}"
