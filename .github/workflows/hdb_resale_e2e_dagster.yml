@@ -103,7 +103,7 @@ jobs:
             Run ID: ${{ github.run_id }}
             
             Logs:
-            ${{ env.LOG_CONTENT }}
+            ${{ env.LOG_CONTENT || 'No logs available' }}
             
             Check full logs here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           to: "${{ secrets.COLLABORATORS_EMAILS }}"
