@@ -97,6 +97,7 @@ Set the following options:
 - `project`: *your_gcp_project_id*
 
 ### Setting Overwrite
+
 Open `meltano.yml` file and perform the following:
 
 ```yml
@@ -412,63 +413,84 @@ Run the following to review the automated documenation:
 dbt docs serve
 ```
 
-## Automation Script
+## Dagster Using dbt Integration
 
-1. Create a file at the root folder with `run.sh`
+This is similar to lesson 2.7 Extra - Hands-on with Orchestration II, where we create a dbt-dagster integrated project and we add meltano as a subprocess.
 
-```bash
-#!/bin/bash
-set -e
-
-# Start timer
-START_TIME=$SECONDS
-
-# Default to 'dev'
-TARGET="dev"
-
-# Check for the --prod flag
-if [[ "$1" == "--prod" ]]; then
-  TARGET="prod"
-  echo "**********************************************************"
-  echo "⚠️  WARNING: YOU ARE TARGETING PRODUCTION (MELTANO & DBT)"
-  echo "*********************************************************"
-else
-  echo "🛠️  Running in DEVELOPMENT mode"
-fi
-
-# 1. Sync data with Meltano using Environment
-echo "Step 1: Syncing data via Meltano ($TARGET)..."
-cd meltano_hdb_resale
-meltano --environment=$TARGET run tap-postgres target-bigquery
-cd ..
-
-# 2. Transform data with dbt
-echo "Step 2: Installing dbt deps and building ($TARGET)..."
-cd dbt_hdb_resale
-dbt clean
-dbt deps
-dbt build --target $TARGET
-
-# 3. Cleanup
-echo "Step 3: Cleaning up..."
-dbt clean
-
-# Calculate duration
-DURATION=$(( SECONDS - START_TIME ))
-echo "--- ✅ Pipeline completed ($TARGET) in $((DURATION / 60))m $((DURATION % 60))s ---"
-```
-
-To run the script use the following for development:
+Use the following command:
 
 ```bash
-./run.sh 
+dagster-dbt project scaffold --project-name dagster_dbt_integration_hdb_resale --dbt-project-dir #full-path-to-the-resale-flat-dbt-project-directory
+```
+If you run `dagster dev` at this stage, you can see the asset lineage graph as follows:
 
-# or
-./run.sh --dev
+![alt text](../assets/dbt-integration-raw.png)
+
+If you have more complex dimension table, it will present here and the dependencies are automatically resolved by Dagster. Furthermore, we do not need to run dbt test, if you look at the box under `prices`, there is a row call `check`. So when they are materializing the prices table, it will perform dbt test at the same time.
+
+Next we would like to add meltano as subprocess.
+
+```python
+# assets.py
+from dagster import AssetExecutionContext, asset
+from dagster_dbt import DbtCliResource, dbt_assets
+
+from .project import dbt_hdb_resale_project
+
+import subprocess
+
+@asset(compute_kind="meltano")
+def pipeline_meltano()->None:
+    """
+    Runs meltano tap-postgres target-bigquery
+    """
+    cmd = ["meltano", "run", "tap-postgres", "target-bigquery"]
+    cwd = '/path/to/meltano/folder/meltano_hdb_resale'
+    try:
+        output= subprocess.check_output(cmd,cwd=cwd,stderr=subprocess.STDOUT).decode()
+    except subprocess.CalledProcessError as e:
+            output = e.output.decode()
+            raise Exception(output)
+
+
+@dbt_assets(manifest=dbt_hdb_resale_project.manifest_path)
+def dbt_hdb_resale_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
 ```
 
-To run the script use the following for production:
+On `definitions.py` we add meltano pipeline into the definitions
+```python
+# definitions.py
+from dagster import Definitions
+from dagster_dbt import DbtCliResource
+from .assets import dbt_hdb_resale_dbt_assets, pipeline_meltano
+from .project import dbt_hdb_resale_project
+from .schedules import schedules
 
-```bash
-./run.sh --prod
+defs = Definitions(
+    assets=[pipeline_meltano, dbt_hdb_resale_dbt_assets],
+    schedules=schedules,
+    resources={
+        "dbt": DbtCliResource(project_dir=dbt_hdb_resale_project)
+    },
+)
 ```
+
+Next, we need to set the dependency of dbt in `stg_hdb_resale.yml` as follows:
+
+```yml
+sources:
+  - name: hdb_resale_source
+    description: "Raw HDB resale data from Postgres source"
+    schema: "{{ target.name }}_postgres_hdb_resale_raw"
+    meta:
+      dagster:
+        asset_key: ["pipeline_meltano"]
+    tables:
+      - name: public_resale_flat_prices_from_jan_2017
+        description: "Raw monthly HDB transaction records"
+```
+
+The final lineage graph is as follows:
+
+![alt text](../assets/dbt-integration-final.png)
