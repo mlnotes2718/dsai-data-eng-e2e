@@ -1,0 +1,48 @@
+version: 2
+
+sources:
+  - name: postgres_hdb_resale_raw
+    description: "Raw HDB resale data from Postgres source"
+    tables:
+      - name: public_resale_flat_prices_from_jan_2017
+        description: "Raw monthly HDB transaction records"
+
+models:
+  - name: stg_hdb_resale
+    description: "Cleaned HDB resale data with standardized metrics."
+    columns:
+      - name: id
+        tests:
+          - unique
+          - not_null
+
+      - name: floor_area_sqm
+        description: "The size of the flat in square meters."
+        tests:
+          - not_null
+          # Ensures value is greater than 0
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: resale_price
+        description: "The total transaction price."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: price_per_sqm
+        description: "Calculated unit price."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: storey_avg
+        description: "The midpoint of the floor range (e.g., 06 TO 08 becomes 7)."
+
+      - name: remaining_lease_months
+        description: "Total remaining lease calculated as (Years * 12) + Months."
